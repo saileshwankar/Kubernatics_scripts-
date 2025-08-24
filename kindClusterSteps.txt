@@ -1,0 +1,169 @@
+📂 Project Structure
+kind-cluster-setup/
+├── install.sh
+├── config.yml
+└── README.md
+
+📜 install.sh
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+echo "🚀 Starting installation of Docker, Kind, and kubectl..."
+
+# ----------------------------
+# 1. Install Docker
+# ----------------------------
+if ! command -v docker &>/dev/null; then
+  echo "📦 Installing Docker..."
+  sudo apt-get update -y
+  sudo apt-get install -y docker.io
+  sudo systemctl enable --now docker
+  sudo usermod -aG docker "$USER"
+  echo "✅ Docker installed and user added to docker group."
+else
+  echo "✅ Docker is already installed."
+fi
+
+# ----------------------------
+# Detect architecture
+# ----------------------------
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64)
+    KIND_URL="https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64"
+    KUBECTL_ARCH="amd64"
+    ;;
+  aarch64)
+    KIND_URL="https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-arm64"
+    KUBECTL_ARCH="arm64"
+    ;;
+  *)
+    echo "❌ Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+esac
+
+# ----------------------------
+# 2. Install Kind (force overwrite)
+# ----------------------------
+echo "📦 Installing Kind..."
+sudo rm -f /usr/local/bin/kind
+curl -Lo kind "$KIND_URL"
+chmod +x kind
+sudo mv kind /usr/local/bin/kind
+echo "✅ Kind installed successfully."
+
+# ----------------------------
+# 3. Install kubectl (latest stable, force overwrite)
+# ----------------------------
+echo "📦 Installing kubectl (latest stable version)..."
+sudo rm -f /usr/local/bin/kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/${KUBECTL_ARCH}/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/kubectl
+echo "✅ kubectl installed successfully."
+
+# ----------------------------
+# 4. Confirm Versions
+# ----------------------------
+echo
+echo "🔍 Installed Versions:"
+docker --version
+kind --version
+kubectl version --client --output=yaml
+
+echo
+echo "🎉 Docker, Kind, and kubectl installation complete!"
+
+📜 config.yml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.29.0
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+
+  - role: worker
+    image: kindest/node:v1.29.0
+
+  - role: worker
+    image: kindest/node:v1.29.0
+
+  - role: worker
+    image: kindest/node:v1.29.0
+
+📜 README.md
+# 🚀 Kind Cluster Setup (1 Control Plane + 3 Workers)
+
+This repository helps you quickly install **Docker, Kind, and kubectl**  
+and then create a Kind Kubernetes cluster with **1 control-plane + 3 worker nodes**.
+
+---
+
+## 📦 Prerequisites
+- Ubuntu VM (tested on Azure Ubuntu 22.04 LTS)
+- User with sudo privileges
+
+---
+
+## 🔧 Steps
+
+### 1. Clone this repository
+```bash
+git clone https://github.com/<your-username>/kind-cluster-setup.git
+cd kind-cluster-setup
+
+2. Run installation script
+chmod +x install.sh
+./install.sh
+
+
+This installs:
+
+Docker
+
+Kind
+
+kubectl
+
+3. Create Kind cluster
+kind create cluster --name=my-first-kindcluster --config=config.yml
+
+4. Verify cluster nodes
+kubectl get nodes
+
+
+Expected output:
+
+NAME                                 STATUS   ROLES           AGE   VERSION
+my-first-kindcluster-control-plane   Ready    control-plane   Xs    v1.29.x
+my-first-kindcluster-worker          Ready    <none>          Xs    v1.29.x
+my-first-kindcluster-worker2         Ready    <none>          Xs    v1.29.x
+my-first-kindcluster-worker3         Ready    <none>          Xs    v1.29.x
+
+🎉 Done!
+
+You now have a local Kubernetes cluster (Kind) with 1 master and 3 workers.
+
+
+---
+
+👉 You can now **upload this repo to GitHub**:  
+```bash
+git init
+git add .
+git commit -m "Kind cluster setup with install script and config"
+git branch -M main
+git remote add origin https://github.com/<your-username>/kind-cluster-setup.git
+git push -u origin main
+
+
+Do you want me to also add a sample deployment (like whoami) in this repo so that anyone cloning it can immediately test the cluster with a running app?
